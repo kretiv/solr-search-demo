@@ -7,4 +7,4 @@ import { SearchComponent } from './components/search/search.component';
   imports: [SearchComponent],
   template: `<app-search></app-search>`
 })
-export class App {}
+export class AppComponent {}

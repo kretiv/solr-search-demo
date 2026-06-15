@@ -1,0 +1,42 @@
+<div class="search-wrapper">
+  <h1>Sacramento County Search</h1>
+  <p class="subtitle">Search powered by Apache SOLR</p>
+
+  <div class="search-box">
+    <input
+      [formControl]="searchControl"
+      type="text"
+      placeholder="Search... (try 'electronics' or 'memory')"
+      class="search-input"
+      autocomplete="off"
+    />
+    <span class="search-icon">⌕</span>
+  </div>
+
+  <div class="results-meta" *ngIf="hasSearched && !isLoading">
+    {{ total }} result{{ total !== 1 ? 's' : '' }} found
+    <span *ngIf="searchControl.value"> for "{{ searchControl.value }}"</span>
+  </div>
+
+  <div class="loading" *ngIf="isLoading">
+    Searching...
+  </div>
+
+  <div class="results" *ngIf="!isLoading">
+    <div class="result-card" *ngFor="let result of results">
+      <div class="result-id">{{ result.id }}</div>
+      <div class="result-title" *ngIf="result.title">{{ result.title }}</div>
+      <div class="result-category" *ngIf="result.cat">
+        <span class="tag" *ngFor="let c of result.cat">{{ c }}</span>
+      </div>
+      <div class="result-author" *ngIf="result.author">
+        by {{ result.author }}
+      </div>
+    </div>
+
+    <div class="no-results"
+         *ngIf="hasSearched && results.length === 0 && !isLoading">
+      No results found. Try a different search term.
+    </div>
+  </div>
+</div>
