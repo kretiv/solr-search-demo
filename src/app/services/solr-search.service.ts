@@ -29,8 +29,10 @@ export class SolrSearchService {
 
   search(query: string): Observable<SearchResponse> {
 
-    // if empty query get everything
-    const q = query.trim() === '' ? '*:*' : query;
+    // if empty query get everything; otherwise search title, description and id by wildcard
+    const q = query.trim() === ''
+      ? '*:*'
+      : `title:${query}*`;
 
     const params = new HttpParams()
       .set('q', q)
