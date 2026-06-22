@@ -175,5 +175,60 @@ Go to `http://localhost:4502/system/console/components` and search for `SolrRepl
 |---|---|
 | Event hook | OSGi EventHandler (`com/day/cq/replication` topic) |
 | AEM API | Sling ResourceResolver + ValueMap, CQ ReplicationAction |
-| HTTP client | `java.net.http.HttpClient` (Java 11, no extra dependency) |
+| HTTP client | `java.net.HttpURLConnection` (Java 8, no extra dependency) |
 | Build | Maven + maven-bundle-plugin (Felix BND) |
+
+---
+
+# Next Steps: Embedding the Angular Search UI in an AEM Page
+
+The Angular app currently runs standalone on `localhost:4200`. To surface it inside an actual AEM page (without SPA Editor), use AEM's **ClientLib** mechanism.
+
+## Why not SPA Editor or Content Fragments?
+
+- **SPA Editor** — maps AEM components to Angular components for in-context authoring. Overkill here: the search widget has no author-editable regions.
+- **Content Fragments** — structured data for authoring; not a UI host. Not applicable.
+- **ClientLib embed** — the right fit. Bundle the Angular build output as a ClientLib, reference it from a simple AEM component, and the app boots inside any AEM page.
+
+## Steps
+
+### 1. Build the Angular app
+```bash
+ng build --configuration production
+```
+Output lands in `dist/solr-search-demo/browser/`.
+
+### 2. Create an AEM ClientLib node
+In CRX/DE (`http://localhost:4502/crx/de`), create the following structure:
+
+```
+/apps/solr-search/clientlibs/
+  searchapp/
+    jcr:primaryType  = cq:ClientLibraryFolder
+    categories       = [solr.search.app]
+    js.txt           (lists the Angular bundle JS files in order)
+    css.txt          (lists the Angular styles CSS file)
+    (copy the files from dist/ here)
+```
+
+`js.txt` example:
+```
+#base=.
+main.js
+polyfills.js
+```
+
+### 3. Create an AEM component
+Create a minimal component at `/apps/solr-search/components/search-page/search-page.html`:
+```html
+<div id="app-root"></div>
+<sly data-sly-use.clientlib="/libs/granite/sightly/templates/clientlib.html"
+     data-sly-call="${clientlib.all @ categories='solr.search.app'}"/>
+```
+
+### 4. Create a page using that component
+1. In AEM Sites, create a page using a template that includes `search-page` component
+2. Open the page — Angular boots inside the `<div id="app-root">` and the search box appears
+
+### 5. SOLR URL for publish
+Replace the proxy with the real SOLR URL in `environment.prod.ts` for production builds, or configure CORS on the SOLR instance for the publish domain.
