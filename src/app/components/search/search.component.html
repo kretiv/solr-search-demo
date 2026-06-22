@@ -1,5 +1,5 @@
 <div class="search-wrapper">
-  <h1>Sacramento County Search</h1>
+  <h1>POC for Solr search integration with AEM</h1>
   <p class="subtitle">Search powered by Apache SOLR 2026</p>
 
   <div class="search-box">
@@ -25,7 +25,9 @@
   <div class="results" *ngIf="!isLoading">
     <div class="result-card" *ngFor="let result of results">
       <div class="result-id">{{ result.id }}</div>
-      <div class="result-title" *ngIf="result.title">{{ result.title }}</div>
+      <div class="result-title" *ngIf="result.title">
+        <a [href]="pageUrl(result.id)" target="_blank" rel="noopener">{{ result.title }}</a>
+      </div>
       <div class="result-category" *ngIf="result.cat">
         <span class="tag" *ngFor="let c of result.cat">{{ c }}</span>
       </div>

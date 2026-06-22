@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
 
 export interface SearchResult {
   id: string;
@@ -22,8 +23,7 @@ export interface SearchResponse {
 })
 export class SolrSearchService {
 
-  // your local SOLR instance
-  private solrUrl = '/solr/aem_content/select';
+  private solrUrl = environment.solrUrl;
 
   constructor(private http: HttpClient) {}
 

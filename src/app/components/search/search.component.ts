@@ -44,4 +44,8 @@ export class SearchComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  pageUrl(id: string): string {
+    return `http://localhost:4502${id}.html`;
+  }
 }
