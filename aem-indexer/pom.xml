@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example.solr</groupId>
+    <artifactId>aem-solr-indexer</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>bundle</packaging>
+    <name>AEM SOLR Indexer - OSGi Bundle</name>
+
+    <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- All AEM 6.5 APIs in one jar: Sling, JCR, Replication, Felix etc.
+             Scope=provided means it is NOT bundled — AEM supplies these at runtime. -->
+        <dependency>
+            <groupId>com.adobe.aem</groupId>
+            <artifactId>uber-jar</artifactId>
+            <version>6.5.0</version>
+            <classifier>apis</classifier>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- OSGi Declarative Services annotations (@Component, @Reference) -->
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.component.annotations</artifactId>
+            <version>1.4.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- EventHandler interface + EventConstants ("event.topics" key) -->
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.service.event</artifactId>
+            <version>1.4.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J logging — AEM bundles its own implementation at runtime -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.21</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- maven-bundle-plugin turns this into an OSGi bundle (.jar with
+                 a MANIFEST.MF that Felix/AEM can install and activate). -->
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>5.1.9</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Bundle-SymbolicName>com.example.solr.aem-solr-indexer</Bundle-SymbolicName>
+                        <Bundle-Name>AEM SOLR Indexer</Bundle-Name>
+                        <!-- Private-Package: classes are in the bundle but not exported
+                             to other bundles — fine for a self-contained service. -->
+                        <Private-Package>com.example.solr.indexer</Private-Package>
+                        <Export-Package/>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <!-- Adobe's public Maven repository where the AEM uber-jar is hosted -->
+        <repository>
+            <id>adobe-public</id>
+            <name>Adobe Public</name>
+            <url>https://repo.adobe.com/nexus/content/groups/public</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+</project>

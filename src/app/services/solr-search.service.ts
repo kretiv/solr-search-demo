@@ -23,7 +23,7 @@ export interface SearchResponse {
 export class SolrSearchService {
 
   // your local SOLR instance
-  private solrUrl = 'http://localhost:8983/solr/aem_content/select';
+  private solrUrl = '/solr/aem_content/select';
 
   constructor(private http: HttpClient) {}
 
@@ -35,10 +35,7 @@ export class SolrSearchService {
     const params = new HttpParams()
       .set('q', q)
       .set('wt', 'json')
-      .set('rows', '10')
-      .set('hl', 'true')
-      .set('hl.fl', 'description')
-      .set('indent', 'true');
+      .set('rows', '20');
 
     return this.http.get<any>(this.solrUrl, { params }).pipe(
       map(response => ({

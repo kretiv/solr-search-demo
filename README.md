@@ -1,59 +1,179 @@
-# SolrSearchDemo
+# SOLR Search Demo
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.15.
+Angular app demonstrating SOLR search integration.
 
-## Development server
+## Setup
 
-To start a local development server, run:
-
+### Start SOLR
 ```bash
+cd solr-9.x.x
+bin/solr start
+bin/solr create -c aem_content
+bin/solr post -c aem_content example/exampledocs/books.json
+```
+
+### Start Angular
+```bash
+npm install
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Open http://localhost:4200 and search for "electronics" or "memory".
 
-## Code scaffolding
+## Tech Stack
+- Angular 21
+- Apache SOLR 9.x
+- TypeScript
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+
+
+# Task: Build an AEM-to-SOLR indexing service (OSGi EventHandler)
+
+Context
+
+
+Local AEM 6.5 instance running at http://localhost:4502 (author)
+Local Apache SOLR 9.x running at http://localhost:8983
+SOLR core name: aem_content
+AEM project follows standard Maven multi-module structure (core / ui.apps / ui.content)
+Goal: build a small, demoable proof of concept showing how AEM content gets
+pushed into SOLR automatically when content is replicated/published — not
+a production-grade system, just something I can run locally and explain
+in a job interview.
+
+
+What to build
+
+An OSGi EventHandler service in the core module that:
+
+
+Listens for AEM replication events (topic: com/day/cq/replication)
+When a page is activated/published, reads the resource at the event's path
+Extracts a small set of properties from the resource's jcr:content node:
+
+jcr:title → map to title
+the resource path itself → map to id
+sling:resourceType → map to resourceType
+jcr:description if present → map to description
+
+
+
+Builds a SOLR document (JSON) from those fields
+POSTs it to http://localhost:8983/solr/aem_content/update?commit=true
+using a simple HTTP client (java.net.http.HttpClient is fine — no need
+for SolrJ unless it's already a dependency)
+Logs success/failure clearly so I can watch it work in error.log
+
+
+Acceptance criteria (what "done" looks like)
+
+
+I can publish/activate a page in my local AEM author instance
+Within a few seconds, a new or updated document appears in SOLR for that
+page when I query http://localhost:8983/solr/aem_content/select?q=:
+The service is visible and shows "Active" in
+http://localhost:4502/system/console/components
+I can explain every part of this in an interview: the event topic, why
+EventHandler vs replication agent transport, the document shape, and the
+failure modes (SOLR down, AEM bundle not active, network issue)
+
+
+Constraints / preferences
+
+
+Keep it simple — this is for interview demo purposes, not production
+Don't worry about retry logic, queuing, or error recovery robustness —
+a basic try/catch with logging is enough
+Prefer code I can read and explain line-by-line over clever abstractions
+If something about my local AEM project structure doesn't match assumptions
+above, inspect the actual project files first and adapt to what's really there
+
+
+Stretch goal (only if the above works easily)
+
+Also handle deactivation/unpublish events by deleting the corresponding
+document from the SOLR index (/update with a delete payload by id).
+
+---
+
+# AEM-to-SOLR Indexing Service (`aem-indexer/`)
+
+An OSGi EventHandler that listens for AEM replication events and pushes page content into the SOLR `aem_content` core automatically when a page is published or unpublished.
+
+## How it works
+
+1. Author publishes a page → AEM fires an OSGi event on topic `com/day/cq/replication`
+2. `SolrReplicationEventHandler.handleEvent()` receives the event
+3. For ACTIVATE: reads `jcr:content` via Sling API, builds a JSON document, POSTs it to SOLR's `/update` endpoint
+4. For DEACTIVATE: sends a JSON delete-by-id to SOLR
+5. `?commit=true` on every POST so documents are immediately queryable
+
+## One-time AEM setup (service user)
+
+The handler uses a Sling *service resource resolver* (not the deprecated admin resolver).
+Do this once in your local AEM author instance:
+
+**Step 1 — Create a system user**
+1. Go to `http://localhost:4502/crx/explorer` → click **User Administration**
+2. Click **Create System User**
+3. Set User ID to `solr-indexer` → Save
+
+**Step 2 — Grant read permission on /content**
+1. Go to `http://localhost:4502/useradmin` (or CRX/DE → `/home/users/system/solr-indexer`)
+2. Add `jcr:read` privilege on `/content`
+
+**Step 3 — Map the subservice in the OSGi console**
+1. Go to `http://localhost:4502/system/console/configMgr`
+2. Find **Apache Sling Service User Mapper Service Amendment**
+3. Add the mapping:
+   ```
+   com.example.solr.aem-solr-indexer:solr-indexer=solr-indexer
+   ```
+   Format: `<Bundle-SymbolicName>:<subservice-name>=<system-user-id>`
+
+## Build and deploy
 
 ```bash
-ng generate component component-name
+cd aem-indexer
+mvn clean package
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+This produces `target/aem-solr-indexer-1.0-SNAPSHOT.jar`.
 
+**Install via AEM Felix console (easiest for a demo):**
+1. Go to `http://localhost:4502/system/console/bundles`
+2. Click **Install/Update** → upload the jar → tick **Start Bundle** → Install
+
+**Or install via curl:**
 ```bash
-ng generate --help
+curl -u admin:admin -F action=install \
+  -F bundlestartlevel=20 \
+  -F bundlefile=@target/aem-solr-indexer-1.0-SNAPSHOT.jar \
+  http://localhost:4502/system/console/bundles
 ```
 
-## Building
+## Verify it is running
 
-To build the project run:
+Go to `http://localhost:4502/system/console/components` and search for `SolrReplicationEventHandler` — status should show **Active**.
 
-```bash
-ng build
-```
+## Test the full flow
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+1. Open `http://localhost:4502` → create or open any page under `/content`
+2. Publish the page (Quick Publish or Manage Publication → Publish)
+3. Watch `crx-quickstart/logs/error.log` for:
+   ```
+   INFO  ...SolrReplicationEventHandler - SOLR indexed: /content/mysite/en/mypage
+   ```
+4. Query SOLR to confirm the document arrived:
+   ```
+   http://localhost:8983/solr/aem_content/select?q=*:*&wt=json
+   ```
 
-## Running unit tests
+## Tech stack
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+| Layer | Technology |
+|---|---|
+| Event hook | OSGi EventHandler (`com/day/cq/replication` topic) |
+| AEM API | Sling ResourceResolver + ValueMap, CQ ReplicationAction |
+| HTTP client | `java.net.http.HttpClient` (Java 11, no extra dependency) |
+| Build | Maven + maven-bundle-plugin (Felix BND) |
