@@ -52,7 +52,8 @@ public class SolrReplicationEventHandler implements EventHandler {
 
     // Properties in component nodes that contain authored text worth indexing.
     private static final Set<String> TEXT_PROPS = new HashSet<>(Arrays.asList(
-        "text", "title", "jcr:title", "description", "jcr:description", "alt", "value"
+        "text", "title", "jcr:title", "heading", "subtitle", "pretitle",
+        "description", "jcr:description", "alt", "caption", "value"
     ));
 
     private static final String SOLR_UPDATE_URL =
