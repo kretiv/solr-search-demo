@@ -32,7 +32,7 @@ export class SolrSearchService {
     // if empty query get everything; otherwise search title, description and id by wildcard
     const q = query.trim() === ''
       ? '*:*'
-      : `title:${query}*`;
+      : `title:${query}* OR content:${query}*`;
 
     const params = new HttpParams()
       .set('q', q)

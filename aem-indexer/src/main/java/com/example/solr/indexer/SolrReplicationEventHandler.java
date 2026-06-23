@@ -19,8 +19,11 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Listens for AEM replication events and keeps the SOLR index in sync.
@@ -46,6 +49,11 @@ import java.util.Map;
 public class SolrReplicationEventHandler implements EventHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger(SolrReplicationEventHandler.class);
+
+    // Properties in component nodes that contain authored text worth indexing.
+    private static final Set<String> TEXT_PROPS = new HashSet<>(Arrays.asList(
+        "text", "title", "jcr:title", "description", "jcr:description", "alt", "value"
+    ));
 
     private static final String SOLR_UPDATE_URL =
         "http://localhost:8983/solr/aem_content/update?commit=true";
@@ -102,14 +110,17 @@ public class SolrReplicationEventHandler implements EventHandler {
             }
 
             ValueMap props = content.getValueMap();
-            String title        = props.get("jcr:title",        String.class);
+            String title        = props.get("jcr:title",         String.class);
             String resourceType = props.get("sling:resourceType", String.class);
-            String description  = props.get("jcr:description",  String.class);
+            String description  = props.get("jcr:description",   String.class);
 
-            // SOLR JSON update format: an array of documents to add/update.
-            // The "id" field is SOLR's unique key — using the JCR path is
-            // convenient because it is already unique and human-readable.
-            String json = buildAddDocument(path, title, resourceType, description);
+            // Walk all child nodes under jcr:content to collect authored text
+            // from paragraph components (Text, Title, etc.).
+            StringBuilder contentBuf = new StringBuilder();
+            collectText(content, contentBuf);
+            String pageContent = contentBuf.toString().trim();
+
+            String json = buildAddDocument(path, title, resourceType, description, pageContent);
             postToSolr(json);
 
             LOG.info("SOLR indexed: {}", path);
@@ -122,14 +133,39 @@ public class SolrReplicationEventHandler implements EventHandler {
     }
 
     private String buildAddDocument(String id, String title,
-                                    String resourceType, String description) {
+                                    String resourceType, String description,
+                                    String content) {
         return String.format(
-            "[{\"id\":\"%s\",\"title\":\"%s\",\"resourceType\":\"%s\",\"description\":\"%s\"}]",
+            "[{\"id\":\"%s\",\"title\":\"%s\",\"resourceType\":\"%s\",\"description\":\"%s\",\"content\":\"%s\"}]",
             escape(id),
             escape(title),
             escape(resourceType),
-            escape(description)
+            escape(description),
+            escape(content)
         );
+    }
+
+    /**
+     * Recursively visits every child node under a resource and appends the
+     * value of any property whose name is in TEXT_PROPS to the buffer.
+     * HTML tags are stripped — AEM's Text component stores rich text as HTML.
+     */
+    private void collectText(Resource resource, StringBuilder buf) {
+        for (Resource child : resource.getChildren()) {
+            ValueMap props = child.getValueMap();
+            for (String propName : TEXT_PROPS) {
+                String value = props.get(propName, String.class);
+                if (value != null && !value.isEmpty()) {
+                    // Strip HTML tags so SOLR indexes plain text, not markup.
+                    String plain = value.replaceAll("<[^>]*>", " ").trim();
+                    if (!plain.isEmpty()) {
+                        buf.append(plain).append(" ");
+                    }
+                }
+            }
+            // Recurse into grandchildren (nested containers, columns, etc.)
+            collectText(child, buf);
+        }
     }
 
     // -------------------------------------------------------------------------
