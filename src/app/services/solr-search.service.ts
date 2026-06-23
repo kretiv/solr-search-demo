@@ -7,6 +7,7 @@ import { environment } from '../../environments/environment';
 export interface SearchResult {
   id: string;
   title?: string;
+  content?: string;
   description?: string;
   author?: string;
   cat?: string[];

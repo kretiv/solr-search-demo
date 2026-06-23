@@ -28,6 +28,7 @@
       <div class="result-title" *ngIf="result.title">
         <a [href]="pageUrl(result.id)" target="_blank" rel="noopener">{{ result.title }}</a>
       </div>
+      <div class="result-snippet" *ngIf="result.content">{{ result.content }}</div>
       <div class="result-category" *ngIf="result.cat">
         <span class="tag" *ngFor="let c of result.cat">{{ c }}</span>
       </div>
